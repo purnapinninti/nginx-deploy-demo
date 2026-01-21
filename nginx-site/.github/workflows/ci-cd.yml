@@ -6,7 +6,7 @@ on:
 
 jobs:
   build-upload:
-    runs-on: ubuntu-latest
+    runs-on: linux-latest
 
     steps:
     - name: Checkout repository
@@ -25,7 +25,7 @@ jobs:
       uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-        aws-region: us-east-1
+        aws-region: ap-south-1
 
     - name: Upload ZIP to S3
       run: |
@@ -33,7 +33,7 @@ jobs:
 
   deploy:
     needs: build-upload
-    runs-on: ubuntu-latest
+    runs-on: linux-latest
 
     steps:
     - name: SSH into EC2 and deploy
