@@ -1,0 +1,59 @@
+name: GitHub to Nginx via S3
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-upload:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Path check
+      run: |
+        ls -l
+        test -d nginx-site
+
+    - name: Zip nginx files
+      run: |
+        zip -r nginx-site.zip nginx-site
+
+    - name: Configure AWS credentials (OIDC)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: us-east-1
+
+    - name: Upload ZIP to S3
+      run: |
+        aws s3 cp nginx-site.zip s3://my-nginx-artifacts/nginx-site.zip
+
+  deploy:
+    needs: build-upload
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: SSH into EC2 and deploy
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ec2-user
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          sudo yum install -y nginx unzip
+          sudo systemctl start nginx
+          sudo systemctl enable nginx
+
+          cd /tmp
+          aws s3 cp s3://my-nginx-artifacts/nginx-site.zip .
+          unzip -o nginx-site.zip
+
+          sudo rm -rf /usr/share/nginx/html/*
+          sudo cp -r nginx-site/* /usr/share/nginx/html/
+          sudo systemctl reload nginx
+
+          nginx -v
+
