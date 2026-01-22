@@ -13,29 +13,22 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-
     - name: Show workspace
-    run: |
-      pwd
-      ls -la
-      find . -maxdepth 3
-
+      run: |
+        pwd
+        ls -la
+        find . -maxdepth 3
 
     - name: Check nginx-site folder
-    run: |
-      if [ ! -d "nginx-site" ]; then
-        echo " nginx-site folder missing"
-        exit 1
-      fi
-      ls -l nginx-site
-    
-        
-       
-
+      run: |
+        if [ ! -d "nginx-site" ]; then
+          echo "nginx-site folder missing"
+          exit 1
+        fi
+        ls -l nginx-site
 
     - name: Install zip
       run: sudo apt-get update && sudo apt-get install -y zip
-
 
     - name: Create ZIP
       run: |
@@ -43,18 +36,14 @@ jobs:
         zip -r nginx-site.zip nginx-site
         ls -lh nginx-site.zip
 
-
     - name: Configure AWS (OIDC)
       uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         aws-region: ap-south-1
 
-
     - name: Verify AWS Login
-      run: |
-        aws sts get-caller-identity
-
+      run: aws sts get-caller-identity
 
     - name: Upload to S3
       run: |
@@ -75,6 +64,7 @@ jobs:
         host: ${{ secrets.EC2_HOST }}
         username: ec2-user
         key: ${{ secrets.EC2_SSH_KEY }}
+
         script: |
 
           echo "=== Install Packages ==="
@@ -95,6 +85,8 @@ jobs:
           echo "=== Deploy ==="
           sudo rm -rf /usr/share/nginx/html/*
           sudo cp -r nginx-site/* /usr/share/nginx/html/
+
+          sudo chown -R nginx:nginx /usr/share/nginx/html
 
           sudo systemctl reload nginx
 
