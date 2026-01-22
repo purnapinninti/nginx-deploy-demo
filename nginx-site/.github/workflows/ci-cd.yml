@@ -24,7 +24,7 @@ jobs:
     - name: Check nginx-site folder
     run: |
       if [ ! -d "nginx-site" ]; then
-        echo "❌ nginx-site folder missing"
+        echo " nginx-site folder missing"
         exit 1
       fi
       ls -l nginx-site
