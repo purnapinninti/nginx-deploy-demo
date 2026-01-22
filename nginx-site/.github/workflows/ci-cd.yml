@@ -12,29 +12,32 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Check files
+    - name: Show repo files
       run: |
-        echo "Listing files..."
-        ls -l
-        ls -l nginx-site
+        echo "===== Repository Files ====="
+        ls -R
 
     - name: Install zip
       run: sudo apt-get update && sudo apt-get install -y zip
 
-    - name: Zip nginx files
+    - name: Create ZIP
       run: |
+        echo "===== Creating ZIP ====="
         zip -r nginx-site.zip nginx-site
+        echo "===== ZIP Created ====="
         ls -lh nginx-site.zip
 
-    - name: Configure AWS credentials (OIDC)
+    - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         aws-region: ap-south-1
 
-    - name: Upload ZIP to S3
+    - name: Upload to S3
       run: |
+        echo "===== Uploading to S3 ====="
         aws s3 cp nginx-site.zip s3://my-nginx-artifacts/nginx-site.zip
+        echo "===== Upload Completed ====="
 
 
   deploy:
@@ -42,7 +45,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Deploy to EC2
+    - name: Deploy on EC2
       uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.EC2_HOST }}
@@ -50,24 +53,31 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
 
-          echo "Installing packages..."
+          echo "===== Installing Packages ====="
           sudo yum install -y nginx unzip awscli
 
+          echo "===== Starting Nginx ====="
           sudo systemctl start nginx
           sudo systemctl enable nginx
 
           cd /tmp
 
-          echo "Downloading ZIP from S3..."
+          echo "===== Downloading from S3 ====="
           aws s3 cp s3://my-nginx-artifacts/nginx-site.zip .
 
+          echo "===== Downloaded File ====="
+          ls -lh nginx-site.zip
+
+          echo "===== Extracting ZIP ====="
           unzip -o nginx-site.zip
 
-          echo "Deploying to Nginx..."
+          echo "===== Deploying Files ====="
           sudo rm -rf /usr/share/nginx/html/*
           sudo cp -r nginx-site/* /usr/share/nginx/html/
 
+          echo "===== Reloading Nginx ====="
           sudo systemctl reload nginx
 
-          nginx -version
+          echo "===== Nginx Version ====="
+          nginx -v
 
