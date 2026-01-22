@@ -1,0 +1,79 @@
+name: GitHub to Nginx via S3
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-upload:
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Show workspace
+      run: |
+        pwd
+        ls -la
+
+    - name: Check nginx-site folder
+      run: |
+        if [ ! -d "nginx-site" ]; then
+          echo "nginx-site folder missing"
+          exit 1
+        fi
+        ls -l nginx-site
+
+    - name: Install zip
+      run: sudo apt-get update && sudo apt-get install -y zip
+
+    - name: Create ZIP
+      run: |
+        zip -r nginx-site.zip nginx-site
+        ls -lh nginx-site.zip
+
+    - name: Configure AWS (OIDC)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ap-south-1
+
+    - name: Verify AWS Login
+      run: aws sts get-caller-identity
+
+    - name: Upload to S3
+      run: aws s3 cp nginx-site.zip s3://my-nginx-artifacts/nginx-site.zip
+
+  deploy:
+    needs: build-upload
+    runs-on: ubuntu-latest
+
+    steps:
+
+    - name: Deploy to EC2
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ec2-user
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+
+          sudo yum install -y nginx unzip awscli
+          sudo systemctl start nginx
+          sudo systemctl enable nginx
+
+          cd /tmp
+
+          aws s3 cp s3://my-nginx-artifacts/nginx-site.zip .
+
+          unzip -o nginx-site.zip
+
+          sudo rm -rf /usr/share/nginx/html/*
+          sudo cp -r nginx-site/* /usr/share/nginx/html/
+
+          sudo systemctl reload nginx
+
+          nginx -v
+
