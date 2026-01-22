@@ -69,5 +69,5 @@ jobs:
 
           sudo systemctl reload nginx
 
-          nginx -v
+          nginx -version
 
