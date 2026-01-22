@@ -9,73 +9,81 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Show workspace
+        run: |
+          pwd
+          ls -la
+          find . -maxdepth 3
 
-    - name: Show workspace
-      run: |
-        pwd
-        ls -la
+      - name: Check nginx-site folder
+        run: |
+          if [ ! -d "nginx-site" ]; then
+            echo "nginx-site folder missing"
+            exit 1
+          fi
+          ls -l nginx-site
 
-    - name: Check nginx-site folder
-      run: |
-        if [ ! -d "nginx-site" ]; then
-          echo "nginx-site folder missing"
-          exit 1
-        fi
-        ls -l nginx-site
+      - name: Install zip
+        run: sudo apt-get update && sudo apt-get install -y zip
 
-    - name: Install zip
-      run: sudo apt-get update && sudo apt-get install -y zip
+      - name: Create ZIP
+        run: |
+          echo "=== Creating ZIP ==="
+          zip -r nginx-site.zip nginx-site
+          ls -lh nginx-site.zip
 
-    - name: Create ZIP
-      run: |
-        zip -r nginx-site.zip nginx-site
-        ls -lh nginx-site.zip
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
 
-    - name: Configure AWS (OIDC)
-      uses: aws-actions/configure-aws-credentials@v4
-    with:
-     role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-     aws-region: ap-south-1
+      - name: Verify AWS Login
+        run: aws sts get-caller-identity
 
-
-
-    - name: Verify AWS Login
-      run: aws sts get-caller-identity
-
-    - name: Upload to S3
-      run: aws s3 cp nginx-site.zip s3://my-nginx-artifacts/nginx-site.zip
+      - name: Upload to S3
+        run: |
+          echo "=== Uploading ==="
+          aws s3 cp nginx-site.zip s3://my-nginx-artifacts/nginx-site.zip
+          echo "=== Upload Done ==="
 
   deploy:
     needs: build-upload
     runs-on: ubuntu-latest
 
     steps:
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
 
-    - name: Deploy to EC2
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ec2-user
-        key: ${{ secrets.EC2_SSH_KEY }}
-        script: |
+            echo "=== Install Packages ==="
+            sudo yum install -y nginx unzip awscli
 
-          sudo yum install -y nginx unzip awscli
-          sudo systemctl start nginx
-          sudo systemctl enable nginx
+            echo "=== Start Nginx ==="
+            sudo systemctl start nginx
+            sudo systemctl enable nginx
 
-          cd /tmp
+            cd /tmp
 
-          aws s3 cp s3://my-nginx-artifacts/nginx-site.zip .
+            echo "=== Download ZIP ==="
+            aws s3 cp s3://my-nginx-artifacts/nginx-site.zip .
 
-          unzip -o nginx-site.zip
+            echo "=== Extract ==="
+            unzip -o nginx-site.zip
 
-          sudo rm -rf /usr/share/nginx/html/*
-          sudo cp -r nginx-site/* /usr/share/nginx/html/
+            echo "=== Deploy ==="
+            sudo rm -rf /usr/share/nginx/html/*
+            sudo cp -r nginx-site/* /usr/share/nginx/html/
 
-          sudo systemctl reload nginx
+            sudo systemctl reload nginx
 
-          nginx -v
+            nginx -v
 
