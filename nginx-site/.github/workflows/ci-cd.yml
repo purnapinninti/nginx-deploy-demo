@@ -6,20 +6,25 @@ on:
 
 jobs:
   build-upload:
-    runs-on: linux-latest
+    runs-on: ubuntu-latest
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Path check
+    - name: Check files
       run: |
+        echo "Listing files..."
         ls -l
-        test -d nginx-site
+        ls -l nginx-site
+
+    - name: Install zip
+      run: sudo apt-get update && sudo apt-get install -y zip
 
     - name: Zip nginx files
       run: |
         zip -r nginx-site.zip nginx-site
+        ls -lh nginx-site.zip
 
     - name: Configure AWS credentials (OIDC)
       uses: aws-actions/configure-aws-credentials@v4
@@ -31,28 +36,37 @@ jobs:
       run: |
         aws s3 cp nginx-site.zip s3://my-nginx-artifacts/nginx-site.zip
 
+
   deploy:
     needs: build-upload
-    runs-on: linux-latest
+    runs-on: ubuntu-latest
 
     steps:
-    - name: SSH into EC2 and deploy
+    - name: Deploy to EC2
       uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.EC2_HOST }}
         username: ec2-user
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          sudo yum install -y nginx unzip
+
+          echo "Installing packages..."
+          sudo yum install -y nginx unzip awscli
+
           sudo systemctl start nginx
           sudo systemctl enable nginx
 
           cd /tmp
+
+          echo "Downloading ZIP from S3..."
           aws s3 cp s3://my-nginx-artifacts/nginx-site.zip .
+
           unzip -o nginx-site.zip
 
+          echo "Deploying to Nginx..."
           sudo rm -rf /usr/share/nginx/html/*
           sudo cp -r nginx-site/* /usr/share/nginx/html/
+
           sudo systemctl reload nginx
 
           nginx -v
