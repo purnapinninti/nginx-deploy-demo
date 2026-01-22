@@ -18,7 +18,7 @@ jobs:
         ls -R
 
     - name: Install zip
-      run: sudo apt-get update && sudo apt-get install -y zip
+      run: sudo yum update && sudo yum install -y zip
 
     - name: Create ZIP
       run: |
@@ -36,7 +36,7 @@ jobs:
     - name: Upload to S3
       run: |
         echo "===== Uploading to S3 ====="
-        aws s3 cp nginx-site.zip s3://my-nginx-artifacts/nginx-site.zip
+        aws s3 cp nginx-site.zip s3://my-nginx-artifacts/
         echo "===== Upload Completed ====="
 
 
