@@ -35,10 +35,10 @@ jobs:
         ls -lh nginx-site.zip
 
     - name: Configure AWS (OIDC)
-  uses: aws-actions/configure-aws-credentials@v4
-  with:
-    role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-    aws-region: ap-south-1
+      uses: aws-actions/configure-aws-credentials@v4
+    with:
+     role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+     aws-region: ap-south-1
 
 
 
