@@ -8,7 +8,7 @@ env:
   S3_BUCKET: my-nginx-artifacts
   ZIP_FILE: nginx-site.zip
   NGINX_PATH: /usr/share/nginx/html
-  WORK_DIR: /tmp
+  WORK_DIR: /
   AWS_REGION: ap-south-1
 
 jobs:
