@@ -5,7 +5,7 @@ on:
     branches: [ main ]
 
 env:
-  S3_BUCKET: my-nginx-artifact
+  S3_BUCKET: my-nginx-artifacts
   ZIP_FILE: nginx-site.zip
   NGINX_PATH: /usr/share/nginx/html
   WORK_DIR: /tmp
